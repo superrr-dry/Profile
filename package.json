@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "build": "vite build",
+    "preview": "vite preview",
+    "docker:build": "docker build -t profile-frontend .",
+    "docker:run": "docker run -p 3000:80 profile-frontend",
+    "clean": "rm -rf node_modules pnpm-lock.yaml",
+    "docker:prod": "docker-compose up --build",
+    "docker:stop": "docker-compose down",
+    "fresh": "pnpm clean && pnpm install"
   },
   "dependencies": {
     "lucide-react": "^0.525.0",

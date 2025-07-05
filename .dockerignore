@@ -1,0 +1,38 @@
+# Dependencies
+node_modules
+.pnpm-store
+
+# Git
+.git
+.gitignore
+
+# Documentation
+README.md
+docs/
+
+# Development files
+.env.local
+.env.development
+
+# Build outputs
+dist
+build
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Testing
+coverage/
+
+# CI/CD (Docker内では不要)
+.github/
+k8s/
+infrastructure/

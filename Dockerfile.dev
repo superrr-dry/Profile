@@ -1,0 +1,22 @@
+FROM node:20-alpine
+
+# pnpmをインストール
+RUN npm install -g pnpm
+
+# 作業ディレクトリ設定
+WORKDIR /app
+
+# package.jsonをコピー
+COPY package.json pnpm-lock.yaml ./
+
+# 依存関係インストール
+RUN pnpm install
+
+# ソースコードをコピー（volumeでマウントするので実際は不要）
+COPY . .
+
+# 開発サーバーのポート
+EXPOSE 5173
+
+# 開発サーバー起動
+CMD ["pnpm", "dev", "--host", "0.0.0.0"]

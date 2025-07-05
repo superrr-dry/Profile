@@ -1,0 +1,20 @@
+# docker-compose.yml
+version: "3.8"
+services:
+  frontend:
+    build: .
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules
+    command: pnpm dev
+# 将来のサービス用（プレースホルダー）
+# monitoring:
+#   image: prom/prometheus:latest
+#   ports:
+#     - "9090:9090"
+#   profiles:
+#     - monitoring
