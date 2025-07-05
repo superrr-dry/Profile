@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: profile-frontend-ingress
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # SSL設定（後で使用）
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  rules:
+    - host: your-domain.com # 後で実際のドメインに変更
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: profile-frontend-service
+                port:
+                  number: 80
+  # tls:  # SSL証明書設定（後で有効化）
+  # - secretName: profile-frontend-tls
+  #   hosts:
+  #   - your-domain.com
