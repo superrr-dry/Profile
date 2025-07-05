@@ -1,0 +1,271 @@
+/* QRコードコンポーネントのスタイル */
+.qr-generator-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family:
+    "Inter",
+    -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+}
+
+.qr-generator-container h2 {
+  text-align: center;
+  color: #1f2937;
+  margin-bottom: 30px;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+/* タブコントロール */
+.tab-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  padding: 10px 20px;
+  border: none;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.tab-btn.active {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.1);
+}
+
+/* プレビューコントロール */
+.preview-controls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.preview-btn {
+  padding: 8px 16px;
+  border: 2px solid #d1d5db;
+  background: white;
+  color: #6b7280;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.preview-btn:hover {
+  border-color: #9ca3af;
+  color: #374151;
+}
+
+.preview-btn.active {
+  border-color: #10b981;
+  background: #10b981;
+  color: white;
+}
+
+/* QRコードコンテナ */
+.business-card-qr-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.qr-code-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ダウンロードコントロール */
+.download-controls {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.download-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 6px -1px rgba(102, 126, 234, 0.25);
+}
+
+.download-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 12px -1px rgba(102, 126, 234, 0.35);
+}
+
+.download-btn:active {
+  transform: translateY(0);
+}
+
+/* QRコンテンツエリア */
+.qr-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  margin-bottom: 30px;
+}
+
+/* 情報セクション */
+.qr-info {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 8px;
+  border-left: 4px solid #2563eb;
+}
+
+.qr-info h3 {
+  color: #1f2937;
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.qr-info ul {
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.qr-info li {
+  margin-bottom: 8px;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .qr-generator-container {
+    padding: 15px;
+  }
+
+  .tab-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .tab-btn {
+    width: 200px;
+  }
+
+  .download-controls {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .download-btn {
+    width: 100%;
+  }
+
+  .business-card-qr-container {
+    padding: 15px;
+  }
+}
+
+/* 印刷用CSS */
+@media print {
+  .qr-generator-container {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .tab-controls,
+  .preview-controls,
+  .download-controls,
+  .qr-info {
+    display: none !important;
+  }
+
+  .business-card-qr-container {
+    width: 2cm;
+    height: 2cm;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  .qr-code-wrapper {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  .qr-content {
+    margin: 0;
+    min-height: auto;
+  }
+}
+
+/* 高DPI対応 */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .business-card-qr-container svg {
+    image-rendering: crisp-edges;
+  }
+}
+
+/* ダークモード対応 */
+@media (prefers-color-scheme: dark) {
+  .qr-generator-container {
+    background: #111827;
+    color: #f9fafb;
+  }
+
+  .qr-generator-container h2 {
+    color: #f9fafb;
+  }
+
+  .business-card-qr-container {
+    background: #1f2937;
+    border-color: #374151;
+  }
+
+  .qr-info {
+    background: #1f2937;
+    border-left-color: #3b82f6;
+  }
+
+  .qr-info h3 {
+    color: #f9fafb;
+  }
+
+  .qr-info li {
+    color: #d1d5db;
+  }
+}

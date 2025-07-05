@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "docker:build": "docker build -t profile-frontend .",
-    "docker:run": "docker run -p 3001:80 profile-frontend",
+    "docker:run": "docker run -d -p 3001:80 profile-frontend",
     "clean": "rm -rf node_modules pnpm-lock.yaml",
     "docker:prod": "docker-compose up --build",
     "docker:stop": "docker-compose down",
@@ -19,7 +19,9 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "html-to-image": "^1.11.13",
     "lucide-react": "^0.525.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-helmet-async": "^2.0.5",
@@ -28,6 +30,7 @@
   "devDependencies": {
     "@eslint/js": "^9.29.0",
     "@types/node": "^24.0.10",
+    "@types/qrcode.react": "^3.0.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
     "@typescript-eslint/eslint-plugin": "^8.35.1",
