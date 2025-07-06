@@ -13,6 +13,12 @@ env:
   EKS_CLUSTER_NAME: profile-cluster
   NODE_VERSION: '20'
 
+permissions:
+  contents: read          # リポジトリ内容の読み取り
+  security-events: write  # セキュリティイベント（SARIF）の書き込み
+  actions: read          # Actions の読み取り
+  id-token: write        # OIDC トークンの書き込み
+  
 jobs:
   # 1. Frontend Build & Test
   frontend-ci:
