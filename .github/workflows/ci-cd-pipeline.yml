@@ -198,7 +198,7 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -206,27 +206,19 @@ jobs:
     
     - name: Configure kubectl
       run: |
-        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}-dev
+    
+    - name: Apply Kubernetes manifests
+      run: |
+        # マニフェストを適用（初回デプロイ時）
+        kubectl apply -f k8s/
     
     - name: Update deployment image
       run: |
-        kubectl set image deployment/devops-portfolio-app \
-          devops-portfolio-app=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.sha }} \
-          -n devops-portfolio
+        kubectl set image deployment/profile-frontend \
+          frontend=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}-dev:${{ github.sha }}
     
     - name: Verify deployment
       run: |
-        kubectl rollout status deployment/devops-portfolio-app -n devops-portfolio
-        kubectl get pods -n devops-portfolio
-
-  # 7. Monitoring & Notifications
-  monitoring-check:
-    runs-on: ubuntu-latest
-    needs: k8s-deploy
-    if: always()
-    
-    steps:
-    - name: Health check
-      run: |
-        # アプリケーションのヘルスチェック
-        curl -f https://your-portfolio-domain.com/health || exit 1
+        kubectl rollout status deployment/profile-frontend
+        kubectl get pods -l app=profile-frontend
