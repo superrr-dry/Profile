@@ -211,7 +211,7 @@ jobs:
     - name: Apply Kubernetes manifests
       run: |
         # マニフェストを適用（初回デプロイ時）
-        kubectl apply -f k8s/
+        kubectl apply -f k8s/base/
     
     - name: Update deployment image
       run: |
