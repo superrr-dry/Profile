@@ -1,13 +1,18 @@
 {
     "name": "profile",
     "main": "index.ts",
-    "devDependencies": {
-        "@types/node": "^18",
-        "typescript": "^5.0.0"
+    "scripts": {
+        "build": "tsc",
+        "dev": "pulumi up --stack dev --yes",
+        "destroy:dev": "pulumi destroy --stack dev --yes"
     },
     "dependencies": {
         "@pulumi/aws": "^6.0.0",
         "@pulumi/awsx": "^2.0.2",
         "@pulumi/pulumi": "^3.113.0"
+    },
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^5.0.0"
     }
 }

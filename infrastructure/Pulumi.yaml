@@ -1,5 +1,5 @@
-name: profile
-description: A minimal AWS TypeScript Pulumi program
+name: profile-site-infrastructure
+description: DevOps Profile Site Infrastructure
 runtime:
   name: nodejs
   options:

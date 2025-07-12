@@ -12,6 +12,13 @@
         "noImplicitReturns": true,
         "forceConsistentCasingInFileNames": true
     },
+    "include": [
+        "**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist"
+    ],
     "files": [
         "index.ts"
     ]
