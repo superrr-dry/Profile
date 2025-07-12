@@ -10,7 +10,7 @@ on:
 env:
   AWS_REGION: ap-northeast-1
   ECR_REPOSITORY: profile-frontend
-  EKS_CLUSTER_NAME: profile-cluster
+  EKS_CLUSTER_NAME: profile-cluster-dev
   NODE_VERSION: '20'
 
 permissions:
@@ -183,6 +183,7 @@ jobs:
         command: up
         stack-name: dev
         work-dir: ./infrastructure
+        upsert: true
       env:
         PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
@@ -217,30 +218,6 @@ jobs:
       run: |
         kubectl rollout status deployment/devops-portfolio-app -n devops-portfolio
         kubectl get pods -n devops-portfolio
-
-  # 6. GitOps - ArgoCD Sync (Optional)
-  # argocd-sync:
-  #   runs-on: ubuntu-latest
-  #   needs: k8s-deploy
-  #   if: github.ref == 'refs/heads/main'
-    
-  #   steps:
-  #   - name: Checkout GitOps repo
-  #     uses: actions/checkout@v4
-  #     with:
-  #       repository: your-username/devops-portfolio-gitops
-  #       token: ${{ secrets.GITOPS_TOKEN }}
-  #       path: gitops
-    
-  #   - name: Update image tag in GitOps repo
-  #     run: |
-  #       cd gitops
-  #       sed -i 's|image: .*|image: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.sha }}|' k8s/deployment.yaml
-  #       git config user.name "GitHub Actions"
-  #       git config user.email "actions@github.com"
-  #       git add .
-  #       git commit -m "Update image tag to ${{ github.sha }}"
-  #       git push
 
   # 7. Monitoring & Notifications
   monitoring-check:
