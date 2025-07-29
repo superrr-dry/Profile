@@ -149,11 +149,10 @@ jobs:
     
     - name: Get Pulumi Outputs
       id: pulumi-outputs
-      uses: pulumi/actions@v6
-      with:
-        command: output --json
-        stack-name: ${{ env.PULUMI_STACK_NAME }}
-        work-dir: ./infrastructure
+      run: |
+        pulumi stack output --json > outputs.json
+        cat outputs.json
+      working-directory: ./infrastructure
       env:
         PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
