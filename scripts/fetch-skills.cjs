@@ -11,7 +11,7 @@ const crypto = require('crypto');
 // 環境変数から設定を取得
 const config = {
   clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
-  privateKey: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  privateKey: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n').replace(/"/g, ''),
   projectId: process.env.GOOGLE_PROJECT_ID,
   spreadsheetId: process.env.GOOGLE_SHEETS_ID,
 };
@@ -26,6 +26,12 @@ function validateConfig() {
   
   if (missing.length > 0) {
     console.error('❌ Missing environment variables:', missing.join(', '));
+    process.exit(1);
+  }
+
+  // 秘密鍵のフォーマット検証
+  if (!config.privateKey.includes('-----BEGIN PRIVATE KEY-----')) {
+    console.error('❌ Invalid private key format. Make sure it includes proper PEM headers.');
     process.exit(1);
   }
 }
