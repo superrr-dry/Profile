@@ -1,224 +1,254 @@
 // infrastructure/index.ts
 import * as pulumi from "@pulumi/pulumi";
 import * as aws from "@pulumi/aws";
-import * as awsx from "@pulumi/awsx";
 
 // 環境設定
 const environment = pulumi.getStack(); // dev or prod
 
+// US East 1 プロバイダー（CloudFrontの証明書用）
+const usEast1Provider = new aws.Provider("us-east-1", {
+    region: "us-east-1",
+});
+
+// ドメイン設定
+const domainName = "smartsolution.jp";
+const subdomains = ["www.smartsolution.jp"];
+
 // 環境別設定
 const environmentConfig = {
     dev: {
-        desiredSize: 1,
-        minSize: 1,
-        maxSize: 2,
-        instanceTypes: ["t3.small"], // 無料枠対象
-        diskSize: 20,
-        logRetention: 7
+        logRetention: 7,
+        cachingEnabled: true,
+        priceClass: "PriceClass_100", // 最も安いCloudFront価格クラス
     }
 };
 
 const currentConfig = environmentConfig[environment as keyof typeof environmentConfig];
 
-// VPC作成（サブネットは自動作成）
-const vpc = new awsx.ec2.Vpc("profile-vpc", {
-    cidrBlock: "10.0.0.0/16",
-    numberOfAvailabilityZones: 2,
-    enableDnsHostnames: true,
-    enableDnsSupport: true,
-    tags: {
-        Name: `profile-vpc-${environment}`,
-        Environment: environment
-    }
+// Route 53 Hosted Zone（既存のドメインを使用）
+const hostedZone = aws.route53.getZone({
+    name: domainName,
 });
 
-// IAM Role - EKS Cluster用
-const clusterRole = new aws.iam.Role("profile-cluster-role", {
-    name: `profile-cluster-role-${environment}`,
-    assumeRolePolicy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [{
-            Action: "sts:AssumeRole",
-            Effect: "Allow",
-            Principal: {
-                Service: "eks.amazonaws.com"
-            }
-        }]
-    }),
-    managedPolicyArns: [
-        "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
-    ],
+// SSL証明書（CloudFront用、us-east-1必須）
+const certificate = new aws.acm.Certificate("profile-cert", {
+    domainName: domainName,
+    subjectAlternativeNames: subdomains,
+    validationMethod: "DNS",
     tags: {
-        Name: `profile-cluster-role-${environment}`,
-        Environment: environment
+        Name: `profile-cert-${environment}`,
+        Environment: environment,
     }
+}, { provider: usEast1Provider });
+
+// SSL証明書のDNS検証レコード
+const certificateValidationRecords = certificate.domainValidationOptions.apply(options => {
+    return options.map((option, index) => {
+        return new aws.route53.Record(`profile-cert-validation-${index}`, {
+            name: option.resourceRecordName,
+            type: option.resourceRecordType,
+            records: [option.resourceRecordValue],
+            zoneId: hostedZone.then(zone => zone.zoneId),
+            ttl: 60,
+        });
+    });
 });
 
-// IAM Role - Node Group用
-const nodeRole = new aws.iam.Role("profile-node-role", {
-    name: `profile-node-role-${environment}`,
-    assumeRolePolicy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [{
-            Action: "sts:AssumeRole",
-            Effect: "Allow",
-            Principal: {
-                Service: "ec2.amazonaws.com"
-            }
-        }]
-    }),
-    managedPolicyArns: [
-        "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy",
-        "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy",
-        "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-    ],
-    tags: {
-        Name: `profile-node-role-${environment}`,
-        Environment: environment
-    }
-});
+// 証明書の検証完了を待つ
+const certificateValidation = new aws.acm.CertificateValidation("profile-cert-validation", {
+    certificateArn: certificate.arn,
+    validationRecordFqdns: certificateValidationRecords.apply(records => 
+        records.map(record => record.fqdn)
+    ),
+}, { provider: usEast1Provider });
 
-// セキュリティグループ
-const clusterSecurityGroup = new aws.ec2.SecurityGroup("profile-cluster-sg", {
-    name: `profile-cluster-sg-${environment}`,
-    vpcId: vpc.vpcId,
-    description: "EKS cluster security group",
-    ingress: [
-        {
-            fromPort: 443,
-            toPort: 443,
-            protocol: "tcp",
-            cidrBlocks: ["0.0.0.0/0"],
-            description: "HTTPS"
-        }
-    ],
-    egress: [
-        {
-            fromPort: 0,
-            toPort: 0,
-            protocol: "-1",
-            cidrBlocks: ["0.0.0.0/0"],
-            description: "All outbound traffic"
-        }
-    ],
+// S3 Bucket for static website hosting
+const websiteBucket = new aws.s3.Bucket("profile-website-bucket", {
+    bucket: `profile-site-${environment}-${pulumi.getStack()}`,
     tags: {
-        Name: `profile-cluster-sg-${environment}`,
-        Environment: environment
-    }
-});
-
-// CloudWatch Log Group（EKSクラスターのログ用）
-const clusterLogGroup = new aws.cloudwatch.LogGroup("profile-cluster-logs", {
-    name: `/aws/eks/profile-cluster-${environment}/cluster`,
-    retentionInDays: currentConfig.logRetention,
-    tags: {
-        Name: `profile-cluster-logs-${environment}`,
-        Environment: environment
-    }
-});
-
-// EKSクラスター
-const cluster = new aws.eks.Cluster("profile-cluster", {
-    name: `profile-cluster-${environment}`,
-    roleArn: clusterRole.arn,
-    vpcConfig: {
-        subnetIds: vpc.privateSubnetIds, // 自動作成されるプライベートサブネット使用
-        securityGroupIds: [clusterSecurityGroup.id],
-        endpointPrivateAccess: true,
-        endpointPublicAccess: true,
-        publicAccessCidrs: ["0.0.0.0/0"]
-    },
-    version: "1.27",
-    enabledClusterLogTypes: ["api", "audit", "authenticator", "controllerManager", "scheduler"],
-    // ログはclusterLogGroupへ送られる
-    tags: {
-        Name: `profile-cluster-${environment}`,
-        Environment: environment
-    }
-}, {
-    dependsOn: [clusterLogGroup] // ロググループが先に作成されるように
-});
-
-// Node Group
-const nodeGroup = new aws.eks.NodeGroup("profile-nodes", {
-    clusterName: cluster.name,
-    nodeGroupName: `profile-nodes-${environment}`,
-    nodeRoleArn: nodeRole.arn,
-    subnetIds: vpc.privateSubnetIds,
-    instanceTypes: currentConfig.instanceTypes,
-    scalingConfig: {
-        desiredSize: currentConfig.desiredSize,
-        maxSize: currentConfig.maxSize,
-        minSize: currentConfig.minSize
-    },
-    diskSize: currentConfig.diskSize,
-    amiType: "AL2_x86_64",
-    capacityType: "ON_DEMAND",
-    updateConfig: {
-        maxUnavailablePercentage: 25
-    },
-    tags: {
-        Name: `profile-nodes-${environment}`,
+        Name: `profile-website-${environment}`,
         Environment: environment,
         CostCenter: "free-tier"
     }
 });
 
-// ECR Repository (コンテナイメージ用)
-const ecrRepo = new aws.ecr.Repository("profile-ecr", {
-    name: `profile-frontend-${environment}`,
-    imageTagMutability: "MUTABLE",
-    imageScanningConfiguration: {
-        scanOnPush: true
+// S3 Bucket Public Access Block (セキュリティのため)
+const publicAccessBlock = new aws.s3.BucketPublicAccessBlock("profile-bucket-pab", {
+    bucket: websiteBucket.id,
+    blockPublicAcls: false,
+    blockPublicPolicy: false,
+    ignorePublicAcls: false,
+    restrictPublicBuckets: false,
+});
+
+// S3 Bucket Website Configuration
+const websiteConfiguration = new aws.s3.BucketWebsiteConfigurationV2("profile-website-config", {
+    bucket: websiteBucket.id,
+    indexDocument: {
+        suffix: "index.html",
     },
+    errorDocument: {
+        key: "index.html", // SPAのため、全てindex.htmlにリダイレクト
+    },
+});
+
+// S3 Bucket Policy (CloudFrontからのアクセス許可)
+const originAccessControl = new aws.cloudfront.OriginAccessControl("profile-oac", {
+    name: `profile-oac-${environment}`,
+    description: "Origin Access Control for Profile Site",
+    originAccessControlOriginType: "s3",
+    signingBehavior: "always",
+    signingProtocol: "sigv4",
+});
+
+// CloudFront Distribution
+const distribution = new aws.cloudfront.Distribution("profile-distribution", {
+    origins: [{
+        domainName: websiteBucket.bucketDomainName,
+        originId: "S3-profile-site",
+        originAccessControlId: originAccessControl.id,
+    }],
+    enabled: true,
+    isIpv6Enabled: true,
+    defaultRootObject: "index.html",
+    defaultCacheBehavior: {
+        allowedMethods: ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"],
+        cachedMethods: ["GET", "HEAD"],
+        targetOriginId: "S3-profile-site",
+        compress: true,
+        viewerProtocolPolicy: "redirect-to-https",
+        minTtl: 0,
+        defaultTtl: 3600,
+        maxTtl: 86400,
+        forwardedValues: {
+            queryString: false,
+            cookies: {
+                forward: "none",
+            },
+        },
+    },
+    customErrorResponses: [{
+        errorCode: 404,
+        responseCode: 200,
+        responsePagePath: "/index.html", // SPAのルーティング対応
+    }, {
+        errorCode: 403,
+        responseCode: 200,
+        responsePagePath: "/index.html",
+    }],
+    priceClass: currentConfig.priceClass,
+    restrictions: {
+        geoRestriction: {
+            restrictionType: "none",
+        },
+    },
+    viewerCertificate: {
+        acmCertificateArn: certificateValidation.certificateArn,
+        sslSupportMethod: "sni-only",
+        minimumProtocolVersion: "TLSv1.2_2021",
+    },
+    aliases: [domainName, ...subdomains],
     tags: {
-        Name: `profile-ecr-${environment}`,
+        Name: `profile-distribution-${environment}`,
+        Environment: environment,
+        CostCenter: "free-tier"
+    },
+});
+
+// S3 Bucket Policy for CloudFront access
+const bucketPolicy = new aws.s3.BucketPolicy("profile-bucket-policy", {
+    bucket: websiteBucket.id,
+    policy: pulumi.all([websiteBucket.arn, distribution.arn]).apply(([bucketArn, distributionArn]) =>
+        JSON.stringify({
+            Version: "2012-10-17",
+            Statement: [{
+                Sid: "AllowCloudFrontServicePrincipal",
+                Effect: "Allow",
+                Principal: {
+                    Service: "cloudfront.amazonaws.com"
+                },
+                Action: "s3:GetObject",
+                Resource: `${bucketArn}/*`,
+                Condition: {
+                    StringEquals: {
+                        "AWS:SourceArn": distributionArn
+                    }
+                }
+            }]
+        })
+    ),
+}, { dependsOn: [publicAccessBlock] });
+
+// Route 53 DNS Records
+const mainDomainRecord = new aws.route53.Record("profile-main-domain", {
+    name: domainName,
+    type: "A",
+    zoneId: hostedZone.then(zone => zone.zoneId),
+    aliases: [{
+        name: distribution.domainName,
+        zoneId: distribution.hostedZoneId,
+        evaluateTargetHealth: false,
+    }],
+});
+
+const wwwDomainRecord = new aws.route53.Record("profile-www-domain", {
+    name: `www.${domainName}`,
+    type: "A",
+    zoneId: hostedZone.then(zone => zone.zoneId),
+    aliases: [{
+        name: distribution.domainName,
+        zoneId: distribution.hostedZoneId,
+        evaluateTargetHealth: false,
+    }],
+});
+
+// CloudWatch Log Group（アクセスログ用）
+const accessLogGroup = new aws.cloudwatch.LogGroup("profile-access-logs", {
+    name: `/aws/cloudfront/profile-site-${environment}`,
+    retentionInDays: currentConfig.logRetention,
+    tags: {
+        Name: `profile-access-logs-${environment}`,
         Environment: environment
     }
 });
 
-// Outputs
-export const vpcId = vpc.vpcId;
-export const clusterName = cluster.name;
-export const clusterEndpoint = cluster.endpoint;
-export const clusterArn = cluster.arn;
-export const nodeGroupArn = nodeGroup.arn;
-export const ecrRepositoryUrl = ecrRepo.repositoryUrl;
-export const logGroupName = clusterLogGroup.name;
-
-// kubeconfig生成
-export const kubeconfig = pulumi.all([
-    cluster.name,
-    cluster.endpoint,
-    cluster.certificateAuthority
-]).apply(([name, endpoint, ca]) => {
-    return JSON.stringify({
-        apiVersion: "v1",
-        clusters: [{
-            cluster: {
-                server: endpoint,
-                "certificate-authority-data": ca.data
-            },
-            name: "kubernetes"
-        }],
-        contexts: [{
-            context: {
-                cluster: "kubernetes",
-                user: "aws"
-            },
-            name: "aws"
-        }],
-        "current-context": "aws",
-        kind: "Config",
-        users: [{
-            name: "aws",
-            user: {
-                exec: {
-                    apiVersion: "client.authentication.k8s.io/v1beta1",
-                    command: "aws",
-                    args: ["eks", "get-token", "--cluster-name", name]
+// CloudWatch Dashboard（監視用）
+const dashboard = new aws.cloudwatch.Dashboard("profile-dashboard", {
+    dashboardName: `profile-site-${environment}`,
+    dashboardBody: JSON.stringify({
+        widgets: [
+            {
+                type: "metric",
+                x: 0,
+                y: 0,
+                width: 12,
+                height: 6,
+                properties: {
+                    metrics: [
+                        ["AWS/CloudFront", "Requests", "DistributionId", distribution.id],
+                        [".", "BytesDownloaded", ".", "."],
+                    ],
+                    period: 300,
+                    stat: "Sum",
+                    region: "us-east-1", // CloudFrontメトリクスはus-east-1
+                    title: "CloudFront Traffic"
                 }
             }
-        }]
-    }, null, 2);
+        ]
+    }),
 });
+
+// Outputs
+export const bucketName = websiteBucket.id;
+export const bucketWebsiteUrl = websiteConfiguration.websiteEndpoint;
+export const cloudFrontUrl = distribution.domainName;
+export const cloudFrontDistributionId = distribution.id;
+export const logGroupName = accessLogGroup.name;
+export const dashboardName = dashboard.dashboardName;
+export const bucketPolicyId = bucketPolicy.id;
+export const domainUrl = `https://${domainName}`;
+export const wwwDomainUrl = `https://www.${domainName}`;
+export const certificateArn = certificate.arn;
+export const hostedZoneId = hostedZone.then(zone => zone.zoneId);
+export const mainDomainRecordName = mainDomainRecord.name;
+export const wwwDomainRecordName = wwwDomainRecord.name;

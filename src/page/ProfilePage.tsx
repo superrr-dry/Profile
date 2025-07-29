@@ -1,20 +1,21 @@
 import { useEffect } from "react";
+import { useSkills } from "../hooks/useSkills";
 
-interface SkillItem {
-  name: string;
-  level: number;
-  category: "frontend" | "backend" | "devops" | "mobile";
-}
 
 interface AppLink {
   name: string;
   description: string;
-  platform: "ios" | "android" | "web";
-  url: string;
+  platforms: Array<{
+    type: "ios" | "android" | "web";
+    url: string;
+  }>;
   icon?: string;
 }
 
 const ProfilePage = () => {
+  // スキルデータを静的JSONファイルから取得
+  const { skills, loading, error, lastUpdated, refetchSkills } = useSkills();
+
   // URLハッシュに基づいてスクロールする
   useEffect(() => {
     const hash = window.location.hash;
@@ -28,62 +29,32 @@ const ProfilePage = () => {
     }
   }, []);
 
-  // スキルデータ
-  const skills: SkillItem[] = [
-    { name: "React", level: 90, category: "frontend" },
-    { name: "TypeScript", level: 85, category: "frontend" },
-    { name: "Node.js", level: 80, category: "backend" },
-    { name: "AWS", level: 85, category: "devops" },
-    { name: "Docker", level: 88, category: "devops" },
-    { name: "Kubernetes", level: 75, category: "devops" },
-    { name: "React Native", level: 70, category: "mobile" },
-    { name: "Swift", level: 65, category: "mobile" },
-  ];
-
   // アプリリンク
   const apps: AppLink[] = [
     {
-      name: "DevOps Monitor",
-      description: "Kubernetes クラスター監視アプリ",
-      platform: "ios",
-      url: "https://apps.apple.com/app/your-devops-app",
-      icon: "📱",
-    },
-    {
-      name: "Infrastructure Tracker",
-      description: "AWSリソース管理ツール",
-      platform: "android",
-      url: "https://play.google.com/store/apps/details?id=your.app",
-      icon: "🔧",
-    },
-    {
-      name: "Portfolio Dashboard",
-      description: "プロジェクト管理ダッシュボード",
-      platform: "web",
-      url: "https://your-portfolio-dashboard.com",
-      icon: "🖥️",
+      name: "OwnReview",
+      description: "新感覚レビュー型SNS！投稿に五段階評価を付けて本音を共有。 リアルな評価があなたの選択をサポート。 ",
+      platforms: [
+        {
+          type: "ios",
+          url: "https://apps.apple.com/us/app/ownreview/id6743192347"
+        },
+        {
+          type: "android",
+          url: "https://play.google.com/store/apps/details?id=com.ownreview.ownreview"
+        }
+      ],
+      icon: "",
     },
   ];
 
   // スキルシートのリンク
   const skillSheetLinks = [
     {
-      title: "詳細スキルシート (PDF)",
-      url: "/assets/skill-sheet.pdf",
+      title: "経歴書",
+      url: "https://docs.google.com/spreadsheets/d/1lgPviAVsiMyNAWr5ajNXJ2s4MbF-RtpM4X-V-QrUjIo/edit?gid=1779571354#gid=1779571354",
       icon: "📄",
-      description: "技術スキルの詳細な評価レポート",
-    },
-    {
-      title: "GitHub Profile",
-      url: "https://github.com/yourusername",
-      icon: "🐙",
-      description: "ソースコードとプロジェクト履歴",
-    },
-    {
-      title: "LinkedIn Profile",
-      url: "https://linkedin.com/in/yourusername",
-      icon: "💼",
-      description: "職歴と推薦状",
+      description: "スキルシート",
     },
   ];
 
@@ -97,23 +68,13 @@ const ProfilePage = () => {
         return "🚀";
       case "mobile":
         return "📱";
+      case "tools":
+        return "🔧";
       default:
         return "💻";
     }
   };
 
-  const getPlatformIcon = (platform: string) => {
-    switch (platform) {
-      case "ios":
-        return "🍎";
-      case "android":
-        return "🤖";
-      case "web":
-        return "🌐";
-      default:
-        return "📱";
-    }
-  };
 
   return (
     <div className="profile-page">
@@ -131,50 +92,19 @@ const ProfilePage = () => {
           />
         </div>
         <div className="profile-info">
-          <h1>Your Name</h1>
-          <h2>DevOps Engineer</h2>
+          <h1>渡辺 一善</h1>
+          <h2>Programmer</h2>
           <p>
-            フルスタック開発からインフラ運用まで、モダンな技術スタックでスケーラブルなシステムを構築します。
+            ユーザーの課題を解決し、安心してお使いいただけるシステムを作ります。<br />
+            現実的な制約を考慮しながら、確実に成果につながる提案をします
           </p>
         </div>
       </header>
 
-      {/* スキルセクション */}
-      <section id="skills" className="skills-section">
-        <h3>🛠️ Technical Skills</h3>
-        <div className="skills-grid">
-          {["frontend", "backend", "devops", "mobile"].map((category) => (
-            <div key={category} className="skill-category">
-              <h4>
-                {getCategoryIcon(category)}
-                {category.charAt(0).toUpperCase() + category.slice(1)}
-              </h4>
-              <div className="skill-items">
-                {skills
-                  .filter((skill) => skill.category === category)
-                  .map((skill) => (
-                    <div key={skill.name} className="skill-item">
-                      <div className="skill-info">
-                        <span className="skill-name">{skill.name}</span>
-                        <span className="skill-level">{skill.level}%</span>
-                      </div>
-                      <div className="skill-bar">
-                        <div
-                          className="skill-progress"
-                          style={{ width: `${skill.level}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* スキルシートリンク */}
       <section className="documents-section">
-        <h3>📋 Skill Sheets & Documents</h3>
+        <h3>📋 Resume</h3>
         <div className="document-links">
           {skillSheetLinks.map((link, index) => (
             <a
@@ -189,7 +119,13 @@ const ProfilePage = () => {
                 <h4>{link.title}</h4>
                 <p>{link.description}</p>
               </div>
-              <div className="external-link-icon">↗️</div>
+              <div className="external-link-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15,3 21,3 21,9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </div>
             </a>
           ))}
         </div>
@@ -197,70 +133,131 @@ const ProfilePage = () => {
 
       {/* アプリリンク */}
       <section id="apps" className="apps-section">
-        <h3>📱 My Applications</h3>
+        <h3>📱 Applications</h3>
         <div className="apps-grid">
           {apps.map((app, index) => (
-            <a
-              key={index}
-              href={app.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="app-card"
-            >
+            <div key={index} className="app-card">
               <div className="app-header">
                 <div className="app-icon">{app.icon}</div>
-                <div className="platform-badge">
-                  {getPlatformIcon(app.platform)} {app.platform.toUpperCase()}
-                </div>
+                <h4>{app.name}</h4>
               </div>
               <div className="app-content">
-                <h4>{app.name}</h4>
                 <p>{app.description}</p>
               </div>
-              <div className="app-action">
-                <span>
-                  {app.platform === "ios"
-                    ? "App Store"
-                    : app.platform === "android"
-                      ? "Google Play"
-                      : "Open Web App"}
-                </span>
-                <span className="arrow">→</span>
+              <div className="app-actions">
+                {app.platforms.map((platform, platformIndex) => (
+                  <a
+                    key={platformIndex}
+                    href={platform.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`download-badge ${platform.type}`}
+                  >
+                    {platform.type === "ios" ? (
+                      <img 
+                        src="https://developer.apple.com/assets/elements/badges/download-on-the-app-store.svg" 
+                        alt="Download on the App Store"
+                        className="badge-image"
+                      />
+                    ) : platform.type === "android" ? (
+                      <img 
+                        src="https://upload.wikimedia.org/wikipedia/commons/7/78/Google_Play_Store_badge_EN.svg" 
+                        alt="Get it on Google Play"
+                        className="badge-image"
+                        style={{width: '155px', height: '60px', objectFit: 'contain'}}
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="web-badge">
+                        <span className="store-icon">🌐</span>
+                        <div className="button-content">
+                          <span className="store-name">Open Web App</span>
+                        </div>
+                      </div>
+                    )}
+                  </a>
+                ))}
               </div>
-            </a>
+            </div>
           ))}
         </div>
       </section>
 
+      {/* スキルセクション */}
+      <section id="skills" className="skills-section">
+        <div className="skills-header">
+          <h3>🛠️ Technical Skills</h3>
+          {lastUpdated && (
+            <div className="skills-meta">
+              <div className="data-info">
+                <span className="last-updated">
+                  最終更新: {lastUpdated.toLocaleDateString('ja-JP')} {lastUpdated.toLocaleTimeString('ja-JP')}
+                </span>
+              </div>
+              <button 
+                onClick={refetchSkills} 
+                className="refresh-btn"
+                disabled={loading}
+              >
+                🔄 更新
+              </button>
+            </div>
+          )}
+        </div>
+        
+        {loading && <div className="loading">スキルデータを読み込み中...</div>}
+        {error && (
+          <div className="error">
+            エラー: {error}
+            <button onClick={refetchSkills} className="retry-btn">再試行</button>
+          </div>
+        )}
+        
+        <div className="skills-grid">
+          {["frontend", "backend", "devops", "mobile", "tools"].map((category) => (
+            <div key={category} className="skill-category">
+              <h4>
+                {getCategoryIcon(category)}
+                {category.charAt(0).toUpperCase() + category.slice(1)}
+              </h4>
+              <div className="skill-items">
+                {skills
+                  .filter((skill) => skill.category === category)
+                  .map((skill) => (
+                    <div key={skill.name} className="skill-item">
+                      <div className="skill-info">
+                        <span className="skill-name">{skill.name}</span>
+                        {skill.experience && (
+                          <span className="skill-experience">{skill.experience}</span>
+                        )}
+                      </div>
+                      <div className="skill-bar">
+                        <div
+                          className="skill-progress"
+                          style={{ width: `${Math.min(100, (skill.level / 36) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
       {/* 連絡先 */}
       <section className="contact-section">
         <h3>📞 Contact</h3>
         <div className="contact-info">
           <div className="contact-item">
             <span className="contact-icon">📧</span>
-            <a href="mailto:your.email@example.com">your.email@example.com</a>
-          </div>
-          <div className="contact-item">
-            <span className="contact-icon">🌐</span>
-            <a
-              href="https://your-portfolio.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              your-portfolio.com
-            </a>
-          </div>
-          <div className="contact-item">
-            <span className="contact-icon">📱</span>
-            <span>+81-90-1234-5678</span>
+            <a href="mailto:gouhuishe@gmail.com">gouhuishe@gmail.com</a>
           </div>
         </div>
       </section>
 
       {/* フッター */}
       <footer className="profile-footer">
-        <p>© 2025 Your Name - DevOps Engineer</p>
-        <p>このページはQRコードからアクセスされました 📱</p>
+        <p>© 2025 Ituski Watanabe - Profile Page</p>
       </footer>
     </div>
   );

@@ -28,3 +28,7 @@ infrastructure/Pulumi.*.yaml
 # OS
 .DS_Store
 Thumbs.db
+.env
+
+disco-beach-455619-a2-a6061e059c50.json
+profile-467303-a633c041c296.json

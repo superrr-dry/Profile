@@ -9,9 +9,8 @@ on:
 
 env:
   AWS_REGION: ap-northeast-1
-  ECR_REPOSITORY: profile-frontend
-  EKS_CLUSTER_NAME: profile-cluster-dev
   NODE_VERSION: '20'
+  PULUMI_STACK_NAME: dev
 
 permissions:
   contents: read          # リポジトリ内容の読み取り
@@ -54,6 +53,14 @@ jobs:
     # - name: Unit tests
     #   run: pnpm run test:unit
     
+    - name: Generate skills data
+      run: node scripts/fetch-skills.js > public/skills.json
+      env:
+        GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
+        GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+        GOOGLE_PROJECT_ID: ${{ secrets.GOOGLE_PROJECT_ID }}
+        GOOGLE_SHEETS_ID: ${{ secrets.GOOGLE_SHEETS_ID }}
+    
     - name: Build application
       run: pnpm run build
     
@@ -86,57 +93,10 @@ jobs:
       with:
         sarif_file: 'trivy-results.sarif'
 
-  # 3. Docker Build & Push
-  docker-build:
-    runs-on: ubuntu-latest
-    needs: [frontend-ci, security-scan]
-    if: github.ref == 'refs/heads/main'
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: frontend-build
-        path: dist/
-    
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-    
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
-    
-    - name: Build, tag, and push image to Amazon ECR
-      env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
-      run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-    
-    - name: Scan Docker image with Trivy
-      uses: aquasecurity/trivy-action@master
-      with:
-        image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
-        format: 'table'
-        exit-code: '1'
-        ignore-unfixed: true
-        vuln-type: 'os,library'
-        severity: 'CRITICAL,HIGH'
-
-  # 4. Infrastructure Deployment
+  # 3. Infrastructure Deployment
   infrastructure-deploy:
     runs-on: ubuntu-latest
-    needs: docker-build
+    needs: [frontend-ci, security-scan]
     if: github.ref == 'refs/heads/main'
     defaults:
       run:
@@ -161,7 +121,7 @@ jobs:
       run: pnpm install
     
     - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -171,7 +131,7 @@ jobs:
       uses: pulumi/actions@v6
       with:
         command: preview
-        stack-name: dev
+        stack-name: ${{ env.PULUMI_STACK_NAME }}
         work-dir: ./infrastructure
         upsert: true
       env:
@@ -181,21 +141,37 @@ jobs:
       uses: pulumi/actions@v6
       with:
         command: up
-        stack-name: dev
+        stack-name: ${{ env.PULUMI_STACK_NAME }}
         work-dir: ./infrastructure
         upsert: true
       env:
         PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+    
+    - name: Get Pulumi Outputs
+      id: pulumi-outputs
+      uses: pulumi/actions@v6
+      with:
+        command: stack output --json
+        stack-name: ${{ env.PULUMI_STACK_NAME }}
+        work-dir: ./infrastructure
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-  # 5. Kubernetes Deployment Update
-  k8s-deploy:
+  # 4. Deploy to S3 and CloudFront
+  deploy-to-aws:
     runs-on: ubuntu-latest
-    needs: [docker-build, infrastructure-deploy]
+    needs: infrastructure-deploy
     if: github.ref == 'refs/heads/main'
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: frontend-build
+        path: dist/
     
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -204,21 +180,47 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
     
-    - name: Configure kubectl
-      run: |
-        aws eks update-kubeconfig --region ${{ env.AWS_REGION }} --name ${{ env.EKS_CLUSTER_NAME }}
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+        
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'pnpm'
     
-    - name: Apply Kubernetes manifests
-      run: |
-        # マニフェストを適用（初回デプロイ時）
-        kubectl apply -f k8s/base/
+    - name: Install Pulumi dependencies
+      run: pnpm install
+      working-directory: ./infrastructure
     
-    - name: Update deployment image
+    - name: Get S3 bucket name and CloudFront distribution ID
+      id: get-outputs
       run: |
-        kubectl set image deployment/profile-frontend \
-          frontend=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+        BUCKET_NAME=$(pulumi stack output bucketName --stack ${{ env.PULUMI_STACK_NAME }})
+        DISTRIBUTION_ID=$(pulumi stack output cloudFrontDistributionId --stack ${{ env.PULUMI_STACK_NAME }})
+        echo "bucket-name=$BUCKET_NAME" >> $GITHUB_OUTPUT
+        echo "distribution-id=$DISTRIBUTION_ID" >> $GITHUB_OUTPUT
+      working-directory: ./infrastructure
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
     
-    - name: Verify deployment
+    - name: Sync files to S3
       run: |
-        kubectl rollout status deployment/profile-frontend
-        kubectl get pods -l app=profile-frontend
+        aws s3 sync dist/ s3://${{ steps.get-outputs.outputs.bucket-name }} --delete
+    
+    - name: Invalidate CloudFront distribution
+      run: |
+        aws cloudfront create-invalidation \
+          --distribution-id ${{ steps.get-outputs.outputs.distribution-id }} \
+          --paths "/*"
+    
+    - name: Display website URL
+      run: |
+        CLOUDFRONT_URL=$(pulumi stack output cloudFrontUrl --stack ${{ env.PULUMI_STACK_NAME }})
+        echo "🚀 Website deployed successfully!"
+        echo "📍 URL: https://$CLOUDFRONT_URL"
+      working-directory: ./infrastructure
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
