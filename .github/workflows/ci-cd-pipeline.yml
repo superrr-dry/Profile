@@ -54,7 +54,7 @@ jobs:
     #   run: pnpm run test:unit
     
     - name: Generate skills data
-      run: node scripts/fetch-skills.js > public/skills.json
+      run: node scripts/fetch-skills.cjs > public/skills.json
       env:
         GOOGLE_CLIENT_EMAIL: ${{ secrets.GOOGLE_CLIENT_EMAIL }}
         GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
