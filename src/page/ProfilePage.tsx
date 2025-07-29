@@ -93,7 +93,7 @@ const ProfilePage = () => {
         </div>
         <div className="profile-info">
           <h1>渡辺 一善</h1>
-          <h2>Programmer</h2>
+          <h2>プログラマー</h2>
           <p>
             ユーザーの課題を解決し、安心してお使いいただけるシステムを作ります。<br />
             現実的な制約を考慮しながら、確実に成果につながる提案をします
@@ -104,7 +104,7 @@ const ProfilePage = () => {
 
       {/* スキルシートリンク */}
       <section className="documents-section">
-        <h3>📋 Resume</h3>
+        <h3>📋 経歴</h3>
         <div className="document-links">
           {skillSheetLinks.map((link, index) => (
             <a
@@ -133,7 +133,7 @@ const ProfilePage = () => {
 
       {/* アプリリンク */}
       <section id="apps" className="apps-section">
-        <h3>📱 Applications</h3>
+        <h3>📱 アプリ</h3>
         <div className="apps-grid">
           {apps.map((app, index) => (
             <div key={index} className="app-card">
@@ -186,7 +186,7 @@ const ProfilePage = () => {
       {/* スキルセクション */}
       <section id="skills" className="skills-section">
         <div className="skills-header">
-          <h3>🛠️ Technical Skills</h3>
+          <h3>🛠️ スキル経歴</h3>
           {lastUpdated && (
             <div className="skills-meta">
               <div className="data-info">
@@ -246,7 +246,7 @@ const ProfilePage = () => {
       </section>
       {/* 連絡先 */}
       <section className="contact-section">
-        <h3>📞 Contact</h3>
+        <h3>📞 連絡先</h3>
         <div className="contact-info">
           <div className="contact-item">
             <span className="contact-icon">📧</span>
