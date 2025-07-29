@@ -151,7 +151,7 @@ jobs:
       id: pulumi-outputs
       uses: pulumi/actions@v6
       with:
-        command: stack output --json
+        command: output --json
         stack-name: ${{ env.PULUMI_STACK_NAME }}
         work-dir: ./infrastructure
       env:
@@ -198,8 +198,8 @@ jobs:
     - name: Get S3 bucket name and CloudFront distribution ID
       id: get-outputs
       run: |
-        BUCKET_NAME=$(pulumi stack output bucketName --stack ${{ env.PULUMI_STACK_NAME }})
-        DISTRIBUTION_ID=$(pulumi stack output cloudFrontDistributionId --stack ${{ env.PULUMI_STACK_NAME }})
+        BUCKET_NAME=$(pulumi output bucketName --stack ${{ env.PULUMI_STACK_NAME }})
+        DISTRIBUTION_ID=$(pulumi output cloudFrontDistributionId --stack ${{ env.PULUMI_STACK_NAME }})
         echo "bucket-name=$BUCKET_NAME" >> $GITHUB_OUTPUT
         echo "distribution-id=$DISTRIBUTION_ID" >> $GITHUB_OUTPUT
       working-directory: ./infrastructure
@@ -218,7 +218,7 @@ jobs:
     
     - name: Display website URL
       run: |
-        CLOUDFRONT_URL=$(pulumi stack output cloudFrontUrl --stack ${{ env.PULUMI_STACK_NAME }})
+        CLOUDFRONT_URL=$(pulumi output cloudFrontUrl --stack ${{ env.PULUMI_STACK_NAME }})
         echo "🚀 Website deployed successfully!"
         echo "📍 URL: https://$CLOUDFRONT_URL"
       working-directory: ./infrastructure
