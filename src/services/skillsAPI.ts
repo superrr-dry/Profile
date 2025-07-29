@@ -59,7 +59,7 @@ export const fetchSkillsWithCache = async (): Promise<SkillData[]> => {
     skillsCache = skills;
     cacheTimestamp = now;
     return skills;
-  } catch (error) {
+  } catch {
     // キャッシュがある場合は古いデータを返す
     if (skillsCache) {
       console.warn('Failed to fetch fresh skills data, using cached version');
